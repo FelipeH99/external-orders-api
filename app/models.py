@@ -1,7 +1,8 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, func
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,14 +48,13 @@ class Order(Base):
 
 class OrderLine(Base):
     __tablename__ = "order_lines"
-    __table_args__ = (UniqueConstraint("order_id", "product_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     sku: Mapped[str] = mapped_column(String(64))
     quantity: Mapped[int]
-    price: Mapped[float] = mapped_column(Numeric(12, 2))
+    price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
 
     order: Mapped[Order] = relationship(back_populates="lines")
     product: Mapped[Product] = relationship(back_populates="order_lines")

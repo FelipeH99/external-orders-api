@@ -1,8 +1,10 @@
 from collections.abc import Generator
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -35,33 +37,34 @@ def open_attempt_session() -> tuple[Session, Generator[Session, None, None] | No
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    external_id = None
-    try:
-        body = await request.json()
-        external_id = body.get("external_id") if isinstance(body, dict) else None
-    except Exception:
-        pass
+    if request.method == "POST" and request.url.path == "/orders/external":
+        external_id = None
+        try:
+            body = await request.json()
+            external_id = body.get("external_id") if isinstance(body, dict) else None
+        except Exception:
+            pass
 
-    db, db_generator = open_attempt_session()
-    try:
-        record_attempt(
-            db,
-            external_id=external_id,
-            result=models.SyncResult.failed,
-            error_message=str(exc.errors()),
-        )
-    finally:
-        if db_generator:
-            try:
-                next(db_generator)
-            except StopIteration:
-                pass
-        else:
-            db.close()
+        db, db_generator = open_attempt_session()
+        try:
+            record_attempt(
+                db,
+                external_id=external_id,
+                result=models.SyncResult.failed,
+                error_message=str(exc.errors()),
+            )
+        finally:
+            if db_generator:
+                try:
+                    next(db_generator)
+                except StopIteration:
+                    pass
+            else:
+                db.close()
 
-    raise HTTPException(
+    return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=exc.errors(),
+        content={"detail": jsonable_encoder(exc.errors())},
     )
 
 
@@ -72,15 +75,19 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 )
 def receive_external_order(
     payload: schemas.ExternalOrderCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ) -> models.Order:
     try:
-        return process_external_order(db, payload)
+        result = process_external_order(db, payload)
     except OrderProcessingError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+    if not result.created:
+        response.status_code = status.HTTP_200_OK
+    return result.order
 
 
 @app.get("/orders", response_model=list[schemas.OrderRead])

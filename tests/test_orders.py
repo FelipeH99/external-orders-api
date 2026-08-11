@@ -43,7 +43,7 @@ def test_duplicate_external_id_does_not_create_second_order(client):
     second_response = client.post("/orders/external", json=payload)
 
     assert first_response.status_code == 201
-    assert second_response.status_code == 201
+    assert second_response.status_code == 200
     assert len(client.get("/orders").json()) == 1
     attempts = client.get("/sync-attempts").json()
     assert [attempt["result"] for attempt in attempts] == ["success", "duplicate"]
@@ -55,6 +55,21 @@ def test_order_with_multiple_products(client):
         lineas=[
             {"sku": "SKU-001", "quantity": 1, "price": "10.00"},
             {"sku": "SKU-002", "quantity": 3, "price": "5.25"},
+        ],
+    )
+
+    response = client.post("/orders/external", json=payload)
+
+    assert response.status_code == 201
+    assert len(response.json()["lines"]) == 2
+
+
+def test_order_can_include_same_sku_in_multiple_lines(client):
+    payload = valid_payload(
+        external_id="EXT-REPEATED-SKU",
+        lineas=[
+            {"sku": "SKU-001", "quantity": 1, "price": "10.00"},
+            {"sku": "SKU-001", "quantity": 2, "price": "9.50"},
         ],
     )
 
@@ -79,6 +94,13 @@ def test_invalid_payload_records_failed_attempt(client):
     attempts = client.get("/sync-attempts").json()
     assert attempts[-1]["external_id"] == "EXT-INVALID"
     assert attempts[-1]["result"] == "failed"
+
+
+def test_validation_errors_outside_order_endpoint_do_not_create_sync_attempts(client):
+    response = client.get("/orders/not-an-int")
+
+    assert response.status_code == 422
+    assert client.get("/sync-attempts").json() == []
 
 
 def test_can_query_sync_attempts(client):

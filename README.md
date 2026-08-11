@@ -18,9 +18,29 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Inicializar y ejecutar
+## Inicializar la base de datos
 
-La base SQLite se crea automaticamente al iniciar la aplicacion. Tambien se cargan productos de ejemplo si la tabla esta vacia.
+Por defecto se usa SQLite y se crea el archivo `external_orders.db`.
+
+```bash
+python -m app.init_db
+```
+
+El script crea las tablas y carga productos de ejemplo si la tabla esta vacia:
+
+- `SKU-001` Keyboard
+- `SKU-002` Mouse
+- `SKU-003` Monitor
+
+Tambien se puede usar otra base configurando `DATABASE_URL`:
+
+```bash
+DATABASE_URL=sqlite:///./external_orders.db python -m app.init_db
+```
+
+## Ejecutar la API
+
+La aplicacion tambien inicializa la base al arrancar, para facilitar el uso local.
 
 ```bash
 uvicorn app.main:app --reload
@@ -84,7 +104,9 @@ tests/
 - `external_id` es unico en la tabla de pedidos para reforzar la idempotencia tambien a nivel de base de datos.
 - Antes de crear un pedido se validan todos los SKU recibidos. Si falta alguno, no se crea el pedido y se registra un intento fallido.
 - Cada procesamiento registra un intento con resultado `success`, `failed` o `duplicate`.
-- Para datos invalidos a nivel de payload, se registra un intento fallido mediante un handler de validacion de FastAPI.
+- Si se recibe nuevamente un `external_id` ya procesado, la API devuelve el pedido existente con HTTP 200 y registra el intento como duplicado.
+- Para datos invalidos del endpoint de recepcion de pedidos, se registra un intento fallido mediante un handler de validacion de FastAPI.
+- La configuracion de base de datos se lee desde `DATABASE_URL`, manteniendo SQLite como valor por defecto para simplificar la ejecucion local.
 
 ## Aprendizaje
 

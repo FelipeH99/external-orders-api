@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,12 @@ class OrderProcessingError(Exception):
     pass
 
 
+@dataclass(frozen=True)
+class OrderProcessingResult:
+    order: models.Order
+    created: bool
+
+
 def record_attempt(
     db: Session,
     *,
@@ -15,6 +23,9 @@ def record_attempt(
     result: models.SyncResult,
     error_message: str | None = None,
 ) -> models.SyncAttempt:
+    if error_message and len(error_message) > 500:
+        error_message = f"{error_message[:497]}..."
+
     attempt = models.SyncAttempt(
         external_id=external_id,
         result=result,
@@ -29,7 +40,7 @@ def record_attempt(
 def process_external_order(
     db: Session,
     payload: schemas.ExternalOrderCreate,
-) -> models.Order:
+) -> OrderProcessingResult:
     existing_order = db.scalar(
         select(models.Order).where(models.Order.external_id == payload.external_id)
     )
@@ -40,7 +51,7 @@ def process_external_order(
             result=models.SyncResult.duplicate,
             error_message="external_id already processed",
         )
-        return existing_order
+        return OrderProcessingResult(order=existing_order, created=False)
 
     skus = {line.sku for line in payload.lines}
     products = db.scalars(select(models.Product).where(models.Product.sku.in_(skus))).all()
@@ -80,12 +91,12 @@ def process_external_order(
         external_id=payload.external_id,
         result=models.SyncResult.success,
     )
-    return order
+    return OrderProcessingResult(order=order, created=True)
 
 
 def seed_products(db: Session) -> None:
-    existing_count = db.scalar(select(models.Product).limit(1))
-    if existing_count:
+    existing_product = db.scalar(select(models.Product).limit(1))
+    if existing_product:
         return
 
     db.add_all(
