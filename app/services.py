@@ -83,7 +83,12 @@ def process_external_order(
             for line in payload.lines
         ],
     )
+    success_attempt = models.SyncAttempt(
+        external_id=payload.external_id,
+        result=models.SyncResult.success,
+    )
     db.add(order)
+    db.add(success_attempt)
     try:
         db.commit()
     except IntegrityError:
@@ -102,12 +107,6 @@ def process_external_order(
         return OrderProcessingResult(order=existing_order, created=False)
 
     db.refresh(order)
-
-    record_attempt(
-        db,
-        external_id=payload.external_id,
-        result=models.SyncResult.success,
-    )
     return OrderProcessingResult(order=order, created=True)
 
 

@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.database import Base, SessionLocal, engine, get_db
+from app.database import Base, engine, get_db
 from app.services import OrderProcessingError, process_external_order, record_attempt, seed_products
 
 
@@ -27,12 +27,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="External Orders API", lifespan=lifespan)
 
 
-def open_attempt_session() -> tuple[Session, Generator[Session, None, None] | None]:
-    override = app.dependency_overrides.get(get_db)
-    if override:
-        db_generator = override()
-        return next(db_generator), db_generator
-    return SessionLocal(), None
+@contextmanager
+def open_attempt_session() -> Generator[Session, None, None]:
+    db_generator = app.dependency_overrides.get(get_db, get_db)()
+    db = next(db_generator)
+    try:
+        yield db
+    finally:
+        try:
+            next(db_generator)
+        except StopIteration:
+            pass
 
 
 @app.exception_handler(RequestValidationError)
@@ -45,22 +50,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         except Exception:
             pass
 
-        db, db_generator = open_attempt_session()
-        try:
+        with open_attempt_session() as db:
             record_attempt(
                 db,
                 external_id=external_id,
                 result=models.SyncResult.failed,
                 error_message=str(exc.errors()),
             )
-        finally:
-            if db_generator:
-                try:
-                    next(db_generator)
-                except StopIteration:
-                    pass
-            else:
-                db.close()
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

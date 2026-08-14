@@ -19,6 +19,11 @@ def test_valid_order_creates_order(client):
     assert body["external_id"] == "EXT-001"
     assert body["customer"] == "Acme SA"
     assert len(body["lines"]) == 1
+    attempts = client.get("/sync-attempts").json()
+    assert len(attempts) == 1
+    assert attempts[0]["external_id"] == "EXT-001"
+    assert attempts[0]["result"] == "success"
+    assert attempts[0]["error_message"] is None
 
 
 def test_order_with_unknown_sku_is_not_created_and_records_attempt(client):
