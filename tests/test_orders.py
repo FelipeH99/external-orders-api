@@ -49,6 +49,73 @@ def test_duplicate_external_id_does_not_create_second_order(client):
     assert [attempt["result"] for attempt in attempts] == ["success", "duplicate"]
 
 
+def test_integrity_error_on_external_id_is_treated_as_duplicate():
+    from sqlalchemy.exc import IntegrityError
+
+    from app import models, schemas, services
+
+    class ScalarResult:
+        def __init__(self, values):
+            self.values = values
+
+        def all(self):
+            return self.values
+
+    class FakeSession:
+        def __init__(self, existing_order):
+            self.added = []
+            self.commit_calls = 0
+            self.existing_order = existing_order
+            self.rolled_back = False
+
+        def scalar(self, _statement):
+            if self.rolled_back:
+                return self.existing_order
+            return None
+
+        def scalars(self, _statement):
+            return ScalarResult(
+                [models.Product(id=1, sku="SKU-001", name="Keyboard")]
+            )
+
+        def add(self, item):
+            self.added.append(item)
+
+        def commit(self):
+            self.commit_calls += 1
+            if self.commit_calls == 1:
+                raise IntegrityError("insert", {}, Exception("unique constraint"))
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def refresh(self, _item):
+            pass
+
+    payload = schemas.ExternalOrderCreate.model_validate(
+        valid_payload(external_id="EXT-RACE")
+    )
+    existing_order = models.Order(
+        id=1,
+        external_id="EXT-RACE",
+        customer="Acme SA",
+        order_date=payload.order_date,
+        lines=[],
+    )
+    db = FakeSession(existing_order)
+
+    result = services.process_external_order(db, payload)
+
+    assert result.created is False
+    assert result.order is existing_order
+    assert db.rolled_back is True
+    assert any(
+        isinstance(item, models.SyncAttempt)
+        and item.result == models.SyncResult.duplicate
+        for item in db.added
+    )
+
+
 def test_order_with_multiple_products(client):
     payload = valid_payload(
         external_id="EXT-MULTI",

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -83,7 +84,23 @@ def process_external_order(
         ],
     )
     db.add(order)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing_order = db.scalar(
+            select(models.Order).where(models.Order.external_id == payload.external_id)
+        )
+        if not existing_order:
+            raise
+        record_attempt(
+            db,
+            external_id=payload.external_id,
+            result=models.SyncResult.duplicate,
+            error_message="external_id already processed",
+        )
+        return OrderProcessingResult(order=existing_order, created=False)
+
     db.refresh(order)
 
     record_attempt(

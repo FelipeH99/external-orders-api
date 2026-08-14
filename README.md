@@ -6,7 +6,8 @@ El objetivo principal es cubrir una integracion simple con:
 
 - API REST con FastAPI.
 - Persistencia relacional con SQLAlchemy.
-- SQLite como base de datos local.
+- SQLite como base de datos local por defecto.
+- PostgreSQL opcional mediante `DATABASE_URL`.
 - Validacion de payloads con Pydantic.
 - Pruebas automatizadas con pytest.
 
@@ -36,6 +37,25 @@ Tambien se puede usar otra base configurando `DATABASE_URL`:
 
 ```bash
 DATABASE_URL=sqlite:///./external_orders.db python -m app.init_db
+```
+
+## Usar PostgreSQL con Docker
+
+SQLite queda como opcion simple para revisar el ejercicio rapidamente. Para probar una base mas cercana a produccion, se puede levantar PostgreSQL con Docker:
+
+```bash
+docker compose up -d db
+export DATABASE_URL=postgresql+psycopg://orders:orders@localhost:5432/orders
+python -m app.init_db
+uvicorn app.main:app --reload
+```
+
+El archivo `.env.example` incluye las variables esperadas. Si se prefiere usar un archivo `.env`:
+
+```bash
+cp .env.example .env
+python -m app.init_db
+uvicorn app.main:app --reload
 ```
 
 ## Ejecutar la API
@@ -88,7 +108,9 @@ Las pruebas usan una base SQLite en memoria, aislada de la base local de desarro
 
 ```text
 app/
+  config.py     Configuracion por variables de entorno.
   database.py   Configuracion de SQLAlchemy y sesiones.
+  init_db.py    Script para crear tablas y productos iniciales.
   main.py       Definicion de FastAPI y endpoints.
   models.py     Modelos ORM.
   schemas.py    Esquemas Pydantic de entrada y salida.
@@ -107,26 +129,30 @@ tests/
 - Si se recibe nuevamente un `external_id` ya procesado, la API devuelve el pedido existente con HTTP 200 y registra el intento como duplicado.
 - Para datos invalidos del endpoint de recepcion de pedidos, se registra un intento fallido mediante un handler de validacion de FastAPI.
 - La configuracion de base de datos se lee desde `DATABASE_URL`, manteniendo SQLite como valor por defecto para simplificar la ejecucion local.
+- Se captura `IntegrityError` al crear pedidos para cubrir mejor el caso de dos requests simultaneos con el mismo `external_id`.
+- El precio se modela como `Decimal`/`Numeric(12, 2)` para evitar problemas de precision binaria propios de `float`.
 
 ## Aprendizaje
 
-Para resolver el ejercicio, los conceptos clave a revisar son:
+Para resolver el ejercicio, los conceptos clave que revise fueron:
 
 - Ciclo de vida de una aplicacion FastAPI y declaracion de endpoints.
 - Modelado declarativo en SQLAlchemy 2.0.
 - Validacion y aliases de campos con Pydantic.
 - Uso de dependencias de FastAPI para inyectar sesiones de base de datos.
 - Tests de API con `TestClient` y SQLite en memoria.
+- Configuracion de SQLAlchemy para soportar tanto SQLite como PostgreSQL.
+- Idempotencia y manejo de errores de unicidad en integraciones.
 
-El abordaje recomendado es empezar por el contrato de la API y los casos de prueba esperados, luego implementar los modelos y finalmente la logica de procesamiento.
+El abordaje fue empezar por el contrato de la API y los casos esperados, implementar los modelos de datos, mover la logica de negocio a un servicio y cerrar cada escenario con tests. Para las partes nuevas, priorice documentacion oficial y ejemplos minimos antes de agregar abstracciones.
 
 ## Mejoras para produccion
 
-- Usar PostgreSQL y migraciones con Alembic en lugar de `create_all`.
-- Manejar concurrencia sobre `external_id` con transacciones mas estrictas y captura explicita de errores de unicidad.
+- Usar migraciones con Alembic en lugar de `create_all`.
+- Endurecer la concurrencia con niveles de aislamiento, reintentos controlados o locks segun el volumen esperado.
 - Agregar autenticacion, autorizacion y rate limiting.
 - Incorporar logging estructurado y trazabilidad por request.
 - Persistir el payload original del intento para auditoria.
 - Agregar paginacion y filtros en listados.
-- Separar configuracion por ambiente mediante variables de entorno.
+- Separar configuracion por ambiente y secretos con una herramienta especifica.
 - Sumar validaciones de negocio mas completas, por ejemplo moneda, precision de precios y normalizacion de SKU.
