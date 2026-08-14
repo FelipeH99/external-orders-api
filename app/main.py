@@ -9,18 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.database import Base, engine, get_db
-from app.services import OrderProcessingError, process_external_order, record_attempt, seed_products
+from app.database import get_db
+from app.init_db import init_db
+from app.services import OrderProcessingError, process_external_order, record_attempt
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    db = next(get_db())
-    try:
-        seed_products(db)
-    finally:
-        db.close()
+    init_db()
     yield
 
 
@@ -30,14 +26,10 @@ app = FastAPI(title="External Orders API", lifespan=lifespan)
 @contextmanager
 def open_attempt_session() -> Generator[Session, None, None]:
     db_generator = app.dependency_overrides.get(get_db, get_db)()
-    db = next(db_generator)
     try:
-        yield db
+        yield next(db_generator)
     finally:
-        try:
-            next(db_generator)
-        except StopIteration:
-            pass
+        db_generator.close()
 
 
 @app.exception_handler(RequestValidationError)

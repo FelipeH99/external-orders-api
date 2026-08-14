@@ -15,12 +15,16 @@ class ProductRead(BaseModel):
 
 
 class ExternalOrderLineCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     sku: str = Field(min_length=1, max_length=64)
-    quantity: int = Field(gt=0)
-    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    quantity: int = Field(gt=0, alias="cantidad")
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2, alias="precio")
 
 
 class ExternalOrderCreate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     external_id: str = Field(min_length=1, max_length=128)
     customer: str = Field(min_length=1, max_length=255, alias="cliente")
     order_date: datetime = Field(alias="fecha")

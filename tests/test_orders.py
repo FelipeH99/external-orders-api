@@ -4,7 +4,7 @@ def valid_payload(**overrides):
         "cliente": "Acme SA",
         "fecha": "2026-08-11T10:30:00",
         "lineas": [
-            {"sku": "SKU-001", "quantity": 2, "price": "10.50"},
+            {"sku": "SKU-001", "cantidad": 2, "precio": "10.50"},
         ],
     }
     payload.update(overrides)
@@ -24,6 +24,18 @@ def test_valid_order_creates_order(client):
     assert attempts[0]["external_id"] == "EXT-001"
     assert attempts[0]["result"] == "success"
     assert attempts[0]["error_message"] is None
+
+
+def test_order_accepts_internal_line_field_names_for_compatibility(client):
+    payload = valid_payload(
+        external_id="EXT-ENGLISH-FIELDS",
+        lineas=[{"sku": "SKU-001", "quantity": 2, "price": "10.50"}],
+    )
+
+    response = client.post("/orders/external", json=payload)
+
+    assert response.status_code == 201
+    assert response.json()["lines"][0]["quantity"] == 2
 
 
 def test_order_with_unknown_sku_is_not_created_and_records_attempt(client):

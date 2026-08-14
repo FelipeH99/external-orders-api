@@ -97,8 +97,8 @@ Las pruebas usan una base SQLite en memoria, aislada de la base local de desarro
   "lineas": [
     {
       "sku": "SKU-001",
-      "quantity": 2,
-      "price": "10.50"
+      "cantidad": 2,
+      "precio": "10.50"
     }
   ]
 }
@@ -131,6 +131,7 @@ tests/
 - La configuracion de base de datos se lee desde `DATABASE_URL`, manteniendo SQLite como valor por defecto para simplificar la ejecucion local.
 - Se captura `IntegrityError` al crear pedidos para cubrir mejor el caso de dos requests simultaneos con el mismo `external_id`.
 - El precio se modela como `Decimal`/`Numeric(12, 2)` para evitar problemas de precision binaria propios de `float`.
+- El payload de entrada usa nombres cercanos a la consigna (`cliente`, `fecha`, `lineas`, `cantidad`, `precio`) y mantiene compatibilidad con nombres internos en ingles para separar contrato externo y modelo interno.
 
 ## Aprendizaje
 
