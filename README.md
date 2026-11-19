@@ -1,10 +1,25 @@
-# External Orders API
+# External Orders API + Order Agent
 
 API que recibe pedidos de un sistema externo, valida sus productos y registra el resultado de la integración. Si llega dos veces el mismo pedido, devuelve el existente para evitar duplicados.
 
 **Python · FastAPI · SQLAlchemy · Pydantic · SQLite / PostgreSQL · pytest**
 
 [Implementación y decisiones técnicas](docs/implementation.md) · [Portfolio](https://felipeheredia.vercel.app)
+
+## Nuevo: recepción asistida de pedidos
+
+Primer incremento del agente: texto → borrador validado → revisión humana → aprobación → creación idempotente. Guarda estados y eventos en la base; permite corregir datos faltantes y reintentar sin duplicar pedidos. Incluye un adaptador de extracción con Ollama y una demo JSON sin IA ni claves.
+
+**[Guía del agente, demo y arquitectura](docs/order-agent.md)**
+
+```sh
+# Con la API encendida y ORDER_AGENT_PROVIDER=json (predeterminado):
+python scripts/order_agent_demo.py
+# Aprobar explícitamente el ejemplo y crear el pedido:
+python scripts/order_agent_demo.py --approve
+```
+
+Es un flujo asistido con pasos controlados por código; el modelo no ejecuta acciones autónomas. La guía describe sus límites y los siguientes incrementos.
 
 ## Problema y solución
 

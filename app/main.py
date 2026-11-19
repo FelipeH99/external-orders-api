@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
+from app.agent.routes import router as agent_router
 from app.database import get_db
 from app.init_db import init_db
 from app.services import OrderProcessingError, process_external_order, record_attempt
@@ -20,7 +21,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="External Orders API", lifespan=lifespan)
+app = FastAPI(title="External Orders API + Order Agent", lifespan=lifespan)
+app.include_router(agent_router)
 
 
 @contextmanager

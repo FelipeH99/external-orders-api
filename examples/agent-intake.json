@@ -1,0 +1,4 @@
+{
+  "request_id": "demo-order-001",
+  "text": "{\"customer\": \"Acme Demo\", \"order_date\": \"2026-11-19T10:00:00Z\", \"lines\": [{\"sku\": \"SKU-001\", \"quantity\": 2, \"price\": \"10.50\"}]}"
+}

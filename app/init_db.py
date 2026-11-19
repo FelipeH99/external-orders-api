@@ -1,3 +1,4 @@
+from app.agent import models as agent_models  # Register agent tables in Base.metadata.
 from app.database import Base, SessionLocal, engine
 from app.services import seed_products
 

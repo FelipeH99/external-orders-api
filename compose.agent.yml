@@ -1,0 +1,16 @@
+services:
+  agent:
+    build: .
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      DATABASE_URL: sqlite:////data/orders.db
+      ORDER_AGENT_PROVIDER: ${ORDER_AGENT_PROVIDER:-json}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - agent-data:/data
+volumes:
+  agent-data:

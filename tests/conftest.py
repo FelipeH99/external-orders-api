@@ -28,7 +28,9 @@ def db_session() -> Session:
 
 
 @pytest.fixture()
-def client(db_session: Session) -> TestClient:
+def client(db_session: Session, monkeypatch) -> TestClient:
+    # The fixture already initialized its isolated DB; never touch the developer DB.
+    monkeypatch.setattr("app.main.init_db", lambda: None)
     def override_get_db():
         yield db_session
 
