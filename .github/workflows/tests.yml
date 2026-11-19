@@ -17,3 +17,18 @@ jobs:
       - run: pytest -q
         env:
           ORDER_AGENT_PROVIDER: json
+      - name: Build Docker image
+        run: docker build -t order-agent:test .
+      - name: Verify container approval workflow
+        shell: bash
+        run: |
+          docker run -d --name order-agent-smoke -p 127.0.0.1:8001:8000 order-agent:test
+          trap 'docker logs order-agent-smoke; docker stop order-agent-smoke' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8001/products > /dev/null; then
+              python scripts/order_agent_demo.py --url http://127.0.0.1:8001 --approve
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
