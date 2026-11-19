@@ -1,6 +1,17 @@
 # External Orders API
 
-Aplicacion Python que simula la recepcion de pedidos externos y su procesamiento dentro de un sistema interno.
+API de integración que recibe pedidos externos, valida productos y registra el resultado de cada sincronización. Un mismo identificador externo devuelve el pedido existente para evitar duplicados.
+
+**Stack:** Python · FastAPI · SQLAlchemy · Pydantic · SQLite / PostgreSQL · pytest
+
+## Qué demuestra
+
+- Integración entre un contrato externo y un modelo interno de pedidos.
+- Validación de SKU y persistencia de intentos exitosos, fallidos o duplicados.
+- Separación entre endpoints, esquemas, modelos y lógica de negocio.
+- Pruebas de API con una base aislada en memoria.
+
+Es una simulación técnica ejecutable localmente; el apartado de mejoras para producción documenta su alcance.
 
 El objetivo principal es cubrir una integracion simple con:
 
