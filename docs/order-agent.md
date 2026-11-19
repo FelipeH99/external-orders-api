@@ -116,4 +116,4 @@ Pruebas aisladas: aprobación obligatoria, corrección/versionado, rechazo, idem
 - 39 pruebas automatizadas locales pasando, sin consumir un modelo remoto.
 - Demo HTTP real: aprobación, creación y segundo intento con el mismo ID de pedido.
 - Prueba manual con `llama3.2:latest` local: extracción correcta de un pedido con SKU, fecha, cantidad y precio explícitos. En una solicitud incompleta el modelo inventó inicialmente un precio; se agregó una comprobación contra el texto y una prueba de regresión. También se observaron errores de productos/cantidades: esta prueba no acredita exactitud general del modelo.
-- Configuración de Compose validada. La imagen Docker todavía no se construyó en esta revisión porque el daemon local devolvió un error; el arranque comprobado fue Python local.
+- Configuración de Compose validada. Aunque el daemon Docker local devolvió un error, [GitHub Actions construyó la imagen y ejecutó la demo dentro del contenedor](https://github.com/FelipeH99/external-orders-api/actions/runs/44587611234), incluyendo aprobación, creación y reintento idempotente.
